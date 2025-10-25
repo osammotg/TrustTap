@@ -216,7 +216,7 @@ function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: num
   
   // Reputation: based on domain authority and positive signals
   const reputation = domainAuth?.authority === 'high' 
-    ? 90 
+    ? 95  // High authority = excellent reputation
     : positiveCount > 2 
       ? 80 
       : 30;
@@ -284,7 +284,15 @@ Rules:
 - Classify dissatisfaction separately from fraud intent
 - Do NOT mark a site as "danger" without ≥2 independent fraud-intent sources (actual fraud, not victim warnings)
 - If evidence is mostly victim warnings and no actual fraud, cap verdict at "caution"
-- Consider positive signals (ratings ≥4.3 with large review_count, reputable press/partnerships) as risk reducers`
+- Consider positive signals (ratings ≥4.3 with large review_count, reputable press/partnerships) as risk reducers
+
+POSITIVE SIGNAL DETECTION:
+- Look for words like: "trusted", "reliable", "secure", "award", "certified", "recommended"
+- High ratings (4+ stars) and positive review counts
+- Security certifications, compliance mentions
+- Customer service praise, fast delivery, good support
+- Industry recognition, partnerships, case studies
+- For large companies: implicit reputation signals (Fortune 500, established brand)`
         },
         {
           role: 'user',
@@ -390,11 +398,16 @@ export async function GET(request: NextRequest) {
       `"${domain} never delivered" -site:${domain}`,
       `"${domain} counterfeit" complaints`,
       `"${domain} chargeback" fraud`,
-      // Positive-balance queries (unchanged)
+      // Enhanced positive-balance queries for large companies
       `${domain} awards`,
       `${domain} case study`,
       `${domain} partnership`,
       `${domain} press release`,
+      // Additional positive signals for established companies
+      `"${domain} trusted" OR "${domain} reliable"`,
+      `"${domain} security" OR "${domain} secure"`,
+      `"${domain} customer service" positive`,
+      `"${domain} reviews" 4 star OR 5 star`,
       // Review/forum queries (unchanged)
       `site:trustpilot.com ${domain}`,
       `site:reddit.com ${rootBrand}`
@@ -439,16 +452,29 @@ export async function GET(request: NextRequest) {
 
     // Enrich evidence before analysis
     const enrichedEvidence = enrichEvidence(allResults, domain);
-
-    // Analyze with OpenAI
-    const report = await analyzeWithOpenAI(domain, enrichedEvidence);
-
-    // Get domain authority
+    
+    // Get domain authority early for positive signal injection
     const domainAuth = await getDomainAuthority(domain).catch(() => ({
       rank: null,
       isTopSite: false,
       authority: 'low' as const
     }));
+    
+    // Inject implicit positive signals for high-authority domains
+    if (domainAuth.authority === 'high') {
+      enrichedEvidence.push({
+        title: `${domain} - Established Technology Company`,
+        url: `https://${domain}`,
+        content: `${domain} is a well-established technology company with strong brand recognition and market presence.`,
+        domain: domain,
+        source_type: 'other',
+        rating: null,
+        review_count: null
+      });
+    }
+
+    // Analyze with OpenAI
+    const report = await analyzeWithOpenAI(domain, enrichedEvidence);
 
     // Post-process: fraud-only risk scoring with context classification
     const victimCount = report.evidence?.filter((e: any) => 
