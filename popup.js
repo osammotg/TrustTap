@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   scanBtn.addEventListener('click', async () => {
+    console.log('Scan button clicked!');
     const domain = domainInput.value.trim();
     
     if (!domain) {
