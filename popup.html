@@ -164,6 +164,47 @@
       font-weight: 500;
     }
 
+    .radar-fallback {
+      text-align: center;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .fallback-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 12px;
+    }
+
+    .radar-scores {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .score-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .score-label {
+      font-weight: 500;
+      color: #333;
+    }
+
+    .score-value {
+      font-weight: 600;
+      color: #667eea;
+    }
+
     .section {
       margin-bottom: 16px;
     }
@@ -426,6 +467,10 @@
       <div class="radar-section">
         <div class="radar-container">
           <canvas id="radarChart" width="280" height="280"></canvas>
+          <div id="radarFallback" class="radar-fallback" style="display: none;">
+            <div class="fallback-title">Trust Assessment</div>
+            <div id="radarScores" class="radar-scores"></div>
+          </div>
         </div>
         <div class="radar-legend">
           <div class="legend-item">

@@ -193,10 +193,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    console.log('Creating radar chart with data:', data.radar_metrics);
+
     // Destroy existing chart
     if (radarChart) radarChart.destroy();
 
-    const radarCtx = document.getElementById('radarChart').getContext('2d');
+    const radarCanvas = document.getElementById('radarChart');
+    if (!radarCanvas) {
+      console.error('Radar chart canvas not found');
+      return;
+    }
+
+    const radarCtx = radarCanvas.getContext('2d');
     const metrics = data.radar_metrics || {
       security: 50,
       reputation: 50,
@@ -204,6 +212,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       transparency: 50,
       trustworthiness: 50
     };
+
+    console.log('Radar metrics:', metrics);
     
     // Create gradient fill
     const gradient = radarCtx.createLinearGradient(0, 0, 0, 280);
@@ -281,6 +291,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     });
+
+    // Show fallback if chart fails to render
+    setTimeout(() => {
+      if (!radarChart || !radarChart.data) {
+        console.log('Chart failed, showing fallback');
+        showRadarFallback(metrics);
+      }
+    }, 2000);
+  }
+
+  function showRadarFallback(metrics) {
+    const canvas = document.getElementById('radarChart');
+    const fallback = document.getElementById('radarFallback');
+    const scoresContainer = document.getElementById('radarScores');
+    
+    if (canvas) canvas.style.display = 'none';
+    if (fallback) fallback.style.display = 'block';
+    
+    if (scoresContainer) {
+      scoresContainer.innerHTML = '';
+      const scoreItems = [
+        { label: '🛡️ Security', value: metrics.security },
+        { label: '⭐ Reputation', value: metrics.reputation },
+        { label: '📝 Reviews', value: metrics.reviews },
+        { label: '🔍 Transparency', value: metrics.transparency },
+        { label: '✅ Trust', value: metrics.trustworthiness }
+      ];
+      
+      scoreItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'score-item';
+        div.innerHTML = `
+          <span class="score-label">${item.label}</span>
+          <span class="score-value">${item.value}/100</span>
+        `;
+        scoresContainer.appendChild(div);
+      });
+    }
   }
 
   function getRiskColor(score) {
