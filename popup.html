@@ -531,6 +531,207 @@
       color: #666;
       text-align: center;
     }
+
+    /* Floating Help Button */
+    .floating-help-btn {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+      color: white;
+      border: none;
+      border-radius: 24px;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      transition: all 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(10px);
+    }
+
+    .floating-help-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    .help-icon {
+      font-size: 14px;
+    }
+
+    .help-text {
+      white-space: nowrap;
+    }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    /* Modal Content */
+    .modal-content {
+      background: white;
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 280px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+      text-align: center;
+    }
+
+    .modal-overlay.show .modal-content {
+      transform: scale(1);
+    }
+
+    /* Modal Header */
+    .modal-header {
+      margin-bottom: 24px;
+    }
+
+    .shield-icon {
+      position: relative;
+      display: inline-block;
+    }
+
+    .shield-emoji {
+      font-size: 32px;
+      display: block;
+    }
+
+    .shield-pulse {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.2);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1.4);
+        opacity: 0;
+      }
+    }
+
+    /* Modal Body */
+    .modal-body {
+      position: relative;
+    }
+
+    .typing-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3B82F6;
+      animation: typing 1.4s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+
+    @keyframes typing {
+      0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .modal-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #374151;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .modal-text.show {
+      opacity: 1;
+    }
+
+    /* Confirmation Toast */
+    .confirmation-toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      z-index: 3000;
+      opacity: 0;
+      transition: all 0.3s ease;
+      max-width: 280px;
+      width: 90%;
+    }
+
+    .confirmation-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-8px);
+    }
+
+    .toast-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast-icon {
+      font-size: 16px;
+    }
+
+    .toast-text {
+      font-size: 12px;
+      color: #374151;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -679,6 +880,46 @@
   </div>
 
   <script src="chart.min.js"></script>
+  <!-- Floating Help Button -->
+  <button id="helpButton" class="floating-help-btn">
+    <span class="help-icon">❓</span>
+    <span class="help-text">Not Sure? Ask for Help.</span>
+  </button>
+
+  <!-- Modal Overlay -->
+  <div id="modalOverlay" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="shield-icon">
+          <div class="shield-pulse"></div>
+          <span class="shield-emoji">🛡️</span>
+        </div>
+      </div>
+      
+      <div class="modal-body">
+        <div id="typingIndicator" class="typing-indicator">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+        
+        <div id="modalText" class="modal-text">
+          Hey 👋 We're currently analyzing this website.<br>
+          We'll text you in a few minutes to let you know if it's safe or not.<br>
+          Please wait — we'll get back to you soon.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Toast -->
+  <div id="confirmationToast" class="confirmation-toast">
+    <div class="toast-content">
+      <span class="toast-icon">✅</span>
+      <span class="toast-text">Your request has been sent to our assistant team.</span>
+    </div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

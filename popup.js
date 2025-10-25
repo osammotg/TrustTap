@@ -303,4 +303,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
     document.head.appendChild(style);
   }
+
+  // Help Button Functionality
+  const helpButton = document.getElementById('helpButton');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const typingIndicator = document.getElementById('typingIndicator');
+  const modalText = document.getElementById('modalText');
+  const confirmationToast = document.getElementById('confirmationToast');
+
+  helpButton.addEventListener('click', () => {
+    // Show modal with animation
+    modalOverlay.classList.add('show');
+    
+    // Show typing indicator for 2-3 seconds
+    typingIndicator.style.display = 'flex';
+    modalText.style.opacity = '0';
+    
+    // After 2.5 seconds, hide typing indicator and show text
+    setTimeout(() => {
+      typingIndicator.style.display = 'none';
+      modalText.classList.add('show');
+    }, 2500);
+    
+    // After 10 seconds total, hide modal and show confirmation toast
+    setTimeout(() => {
+      modalOverlay.classList.remove('show');
+      modalText.classList.remove('show');
+      typingIndicator.style.display = 'flex';
+      
+      // Show confirmation toast
+      setTimeout(() => {
+        confirmationToast.classList.add('show');
+        
+        // Hide toast after 3 seconds
+        setTimeout(() => {
+          confirmationToast.classList.remove('show');
+        }, 3000);
+      }, 500);
+    }, 10000);
+  });
+
+  // Close modal when clicking outside
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) {
+      modalOverlay.classList.remove('show');
+      modalText.classList.remove('show');
+      typingIndicator.style.display = 'flex';
+    }
+  });
 });
