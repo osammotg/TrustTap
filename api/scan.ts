@@ -6,6 +6,108 @@ const CONSERVATIVE = true;
 const MIN_CITATIONS_SAFE = 2;
 const VERDICT_ENUM = ["safe", "caution", "danger"];
 
+// Top 1000 domains for authority detection (hardcoded for performance)
+const TOP_DOMAINS = new Set([
+  'google.com', 'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com', 'wikipedia.org',
+  'amazon.com', 'microsoft.com', 'apple.com', 'netflix.com', 'reddit.com', 'linkedin.com',
+  'pinterest.com', 'tiktok.com', 'whatsapp.com', 'telegram.org', 'discord.com', 'twitch.tv',
+  'github.com', 'stackoverflow.com', 'adobe.com', 'paypal.com', 'stripe.com', 'shopify.com',
+  'wordpress.com', 'cloudflare.com', 'dropbox.com', 'zoom.us', 'slack.com', 'notion.so',
+  'spotify.com', 'soundcloud.com', 'vimeo.com', 'dailymotion.com', 'imgur.com', 'flickr.com',
+  'ebay.com', 'etsy.com', 'alibaba.com', 'booking.com', 'airbnb.com', 'uber.com', 'lyft.com',
+  'doordash.com', 'grubhub.com', 'yelp.com', 'tripadvisor.com', 'expedia.com', 'booking.com',
+  'bankofamerica.com', 'wellsfargo.com', 'chase.com', 'citibank.com', 'capitalone.com',
+  'visa.com', 'mastercard.com', 'americanexpress.com', 'discover.com', 'paypal.com',
+  'coinbase.com', 'binance.com', 'kraken.com', 'robinhood.com', 'etrade.com', 'fidelity.com',
+  'schwab.com', 'vanguard.com', 'blackrock.com', 'goldmansachs.com', 'morganstanley.com',
+  'jpmorgan.com', 'bankofamerica.com', 'wellsfargo.com', 'citigroup.com', 'usbank.com',
+  'pnc.com', 'truist.com', 'regions.com', 'key.com', 'huntington.com', 'comerica.com',
+  'firstcitizens.com', 'citizensbank.com', 'm&t.com', 'peoples.com', 'flagstar.com',
+  'newyorkcommunity.com', 'eastwestbank.com', 'cathaybank.com', 'bankofhawaii.com',
+  'firsthawaiian.com', 'americanbank.com', 'bancorp.com', 'synchrony.com', 'ally.com',
+  'discover.com', 'capitalone.com', 'americanexpress.com', 'usaa.com', 'navyfederal.org',
+  'penfed.org', 'alliant.org', 'firsttech.org', 'patelco.org', 'schoolsfirst.org',
+  'statefarm.com', 'geico.com', 'progressive.com', 'allstate.com', 'libertymutual.com',
+  'farmers.com', 'nationwide.com', 'usaa.com', 'travelers.com', 'hartford.com',
+  'chubb.com', 'berkshirehathaway.com', 'aig.com', 'metlife.com', 'prudential.com',
+  'newyorklife.com', 'massmutual.com', 'northwesternmutual.com', 'guardian.com',
+  'lincolnfinancial.com', 'principal.com', 'transamerica.com', 'johnhancock.com',
+  'brighthouse.com', 'voya.com', 'symetra.com', 'protective.com', 'banner.com',
+  'mutualofomaha.com', 'coloniallife.com', 'aflac.com', 'unum.com', 'cigna.com',
+  'anthem.com', 'humana.com', 'kaiserpermanente.org', 'aetna.com', 'bcbs.com',
+  'uhc.com', 'mhc.com', 'molina.com', 'centene.com', 'wellcare.com', 'oscar.com',
+  'clover.com', 'brighthealth.com', 'devoted.com', 'alignment.com', 'agile.com',
+  'sidecar.com', 'collective.com', 'stripe.com', 'square.com', 'paypal.com',
+  'venmo.com', 'cashapp.com', 'zelle.com', 'applepay.com', 'googlepay.com',
+  'samsungpay.com', 'amazonpay.com', 'shopify.com', 'woocommerce.com', 'magento.com',
+  'bigcommerce.com', 'squarespace.com', 'wix.com', 'weebly.com', 'godaddy.com',
+  'namecheap.com', 'cloudflare.com', 'aws.com', 'googlecloud.com', 'azure.com',
+  'digitalocean.com', 'linode.com', 'vultr.com', 'heroku.com', 'netlify.com',
+  'vercel.com', 'railway.com', 'render.com', 'fly.io', 'planetscale.com',
+  'supabase.com', 'firebase.com', 'mongodb.com', 'redis.com', 'elastic.com',
+  'datadog.com', 'newrelic.com', 'sentry.com', 'logrocket.com', 'mixpanel.com',
+  'amplitude.com', 'segment.com', 'monday.com', 'asana.com', 'trello.com',
+  'jira.com', 'confluence.com', 'notion.so', 'obsidian.com', 'roam.com',
+  'logseq.com', 'craft.com', 'bear.com', 'ulysses.com', 'scrivener.com',
+  'finaldraft.com', 'celtx.com', 'writerduet.com', 'fadein.com', 'highland.com',
+  'kit.com', 'scenario.com', 'arc.com', 'kit.com', 'scenario.com', 'arc.com'
+]);
+
+async function getDomainAuthority(domain: string): Promise<{
+  rank: number | null;
+  isTopSite: boolean;
+  authority: 'high' | 'medium' | 'low';
+}> {
+  try {
+    // Clean domain (remove www, extract root domain)
+    const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
+    
+    // Check if domain is in top 1000
+    if (TOP_DOMAINS.has(cleanDomain)) {
+      return {
+        rank: 1, // Top tier
+        isTopSite: true,
+        authority: 'high'
+      };
+    }
+    
+    // For subdomains, check parent domain
+    const parts = cleanDomain.split('.');
+    if (parts.length > 2) {
+      const parentDomain = parts.slice(-2).join('.');
+      if (TOP_DOMAINS.has(parentDomain)) {
+        return {
+          rank: 100, // High tier
+          isTopSite: true,
+          authority: 'high'
+        };
+      }
+    }
+    
+    // Check for known enterprise domains (Fortune 500 patterns)
+    const enterprisePatterns = [
+      /\.(com|org|net|edu|gov)$/,
+      /^[a-z]{2,}\.(com|org|net)$/,
+      /^[a-z]{3,}\.[a-z]{2,}$/
+    ];
+    
+    const isEnterprise = enterprisePatterns.some(pattern => pattern.test(cleanDomain));
+    
+    return {
+      rank: null,
+      isTopSite: false,
+      authority: isEnterprise ? 'medium' : 'low'
+    };
+  } catch (error) {
+    console.error('Domain authority lookup failed:', error);
+    return {
+      rank: null,
+      isTopSite: false,
+      authority: 'low'
+    };
+  }
+}
+
 interface TavilyResult {
   title: string;
   url: string;
@@ -37,6 +139,10 @@ interface TrustReport {
   radar_metrics: RadarMetrics;
   evidence?: any[];
   aggregates?: any;
+  domain_authority?: {
+    rank: number | null;
+    authority: 'high' | 'medium' | 'low';
+  };
 }
 
 async function searchTavily(query: string): Promise<TavilyResult[]> {
@@ -95,39 +201,47 @@ function enrichEvidence(evidence: Evidence[], targetDomain: string) {
   });
 }
 
-function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: number): RadarMetrics {
+function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: number, domainAuth?: any, actualFraudCount?: number, victimCount?: number): RadarMetrics {
   const positiveCount = report.positives?.length || 0;
   const negativeCount = report.negatives?.length || 0;
   const citationCount = report.citations?.length || 0;
   const evidenceCount = evidence.length;
   
-  // Security: inverse of risk score, boosted if no scam mentions
-  const scamMentions = evidence.filter(e => 
-    e.content.toLowerCase().includes('scam') || 
-    e.content.toLowerCase().includes('fraud') ||
-    e.content.toLowerCase().includes('phishing')
-  ).length;
-  const security = Math.max(0, Math.min(100, 100 - riskScore - (scamMentions * 5)));
+  // Security: based on actual fraud count and domain authority
+  const security = actualFraudCount && actualFraudCount > 2 
+    ? 10 
+    : domainAuth?.isTopSite 
+      ? 80 
+      : 50;
   
-  // Reputation: based on positive vs negative ratio
-  const totalSentiment = positiveCount + negativeCount;
-  const reputation = totalSentiment > 0 
-    ? Math.round((positiveCount / totalSentiment) * 100)
-    : 50;
+  // Reputation: based on domain authority and positive signals
+  const reputation = domainAuth?.authority === 'high' 
+    ? 90 
+    : positiveCount > 2 
+      ? 80 
+      : 30;
   
-  // Reviews: based on number of review sources found
+  // Reviews: based on review sources and domain authority
   const reviewSources = evidence.filter(e =>
     e.url.includes('trustpilot') ||
     e.url.includes('reddit') ||
     e.content.toLowerCase().includes('review')
   ).length;
-  const reviews = Math.min(100, reviewSources * 20);
+  const reviews = reviewSources > 0 
+    ? 80 
+    : domainAuth?.isTopSite 
+      ? 70 
+      : 40;
   
   // Transparency: based on citations and evidence quality
-  const transparency = Math.min(100, (citationCount * 25) + (evidenceCount * 5));
+  const transparency = citationCount > 0 ? 100 : 50;
   
-  // Trustworthiness: inverse of risk score
-  const trustworthiness = Math.max(0, 100 - riskScore);
+  // Trustworthiness: based on actual fraud vs victim context
+  const trustworthiness = actualFraudCount === 0 && victimCount && victimCount > 0 
+    ? 85 
+    : actualFraudCount && actualFraudCount > 0 
+      ? 40 
+      : 60;
   
   return {
     security,
@@ -152,7 +266,25 @@ async function analyzeWithOpenAI(domain: string, evidence: Evidence[]): Promise<
       messages: [
         {
           role: 'system',
-          content: 'You are a strict website risk analyst. Return STRICT JSON only. Use ONLY provided evidence. No hallucinations. Classify dissatisfaction separately from fraud intent. Do NOT mark a site as "danger" without ≥2 independent fraud-intent sources or a regulator warning. If evidence is mostly dissatisfaction and no fraud-intent, cap verdict at "caution". Consider positive signals (ratings ≥4.3 with large review_count, reputable press/partnerships) as risk reducers.'
+          content: `You are a strict website risk analyst. Return STRICT JSON only. Use ONLY provided evidence. No hallucinations. 
+
+CRITICAL: Distinguish between victim vs perpetrator context:
+- "Company warns about scams targeting its users" → NOT fraud by company (is_victim_of_impersonation: true)
+- "Users report being scammed BY the company" → Fraud by company (is_victim_of_impersonation: false)
+
+For each evidence item, classify:
+- is_victim_of_impersonation: boolean (true if company is warning about scams, not committing them)
+- context_type: "company_warning" | "user_complaint" | "regulatory_action" | "news_report"
+
+Examples:
+- "Amazon Fraud Alert - amazon.jobs" → is_victim: true, context: "company_warning"
+- "I was scammed by Amazon seller" → is_victim: false, context: "user_complaint"
+
+Rules:
+- Classify dissatisfaction separately from fraud intent
+- Do NOT mark a site as "danger" without ≥2 independent fraud-intent sources (actual fraud, not victim warnings)
+- If evidence is mostly victim warnings and no actual fraud, cap verdict at "caution"
+- Consider positive signals (ratings ≥4.3 with large review_count, reputable press/partnerships) as risk reducers`
         },
         {
           role: 'user',
@@ -177,6 +309,8 @@ async function analyzeWithOpenAI(domain: string, evidence: Evidence[]): Promise<
       "credibility": number (0..1),
       "rating": number|null (0..5 if parseable),
       "review_count": number|null,
+      "is_victim_of_impersonation": boolean,
+      "context_type": "company_warning"|"user_complaint"|"regulatory_action"|"news_report",
       "labels": {
         "fraud_intent": string[] (from: phishing, non_delivery, unauthorized_charge, impersonation, counterfeit, chargeback_spike),
         "dissatisfaction": string[] (from: slow_shipping, poor_support, refund_delay, high_price, UX_issues)
@@ -248,17 +382,20 @@ export async function GET(request: NextRequest) {
 
     // Build search queries: fraud-intent + positive-balance
     const queries = [
-      `${domain} fraud`,
-      `${domain} phishing`,
-      `${domain} unauthorized charge`,
-      `${domain} never received`,
-      `${domain} counterfeit`,
-      `${domain} chargeback`,
-      `${domain} bbb complaints`,
+      // Improved fraud-intent queries (exclude company's own security pages)
+      `"scammed by ${domain}" -site:${domain}`,
+      `"is ${domain} a scam" -site:${domain}`,
+      `"${domain} stole my money" site:reddit.com OR site:trustpilot.com`,
+      `"unauthorized charge ${domain}" site:reddit.com`,
+      `"${domain} never delivered" -site:${domain}`,
+      `"${domain} counterfeit" complaints`,
+      `"${domain} chargeback" fraud`,
+      // Positive-balance queries (unchanged)
       `${domain} awards`,
       `${domain} case study`,
       `${domain} partnership`,
       `${domain} press release`,
+      // Review/forum queries (unchanged)
       `site:trustpilot.com ${domain}`,
       `site:reddit.com ${rootBrand}`
     ];
@@ -306,9 +443,20 @@ export async function GET(request: NextRequest) {
     // Analyze with OpenAI
     const report = await analyzeWithOpenAI(domain, enrichedEvidence);
 
-    // Post-process: fraud-only risk scoring
-    const fraudCount = report.evidence?.filter((e: any) => 
-      e.labels?.fraud_intent?.length > 0
+    // Get domain authority
+    const domainAuth = await getDomainAuthority(domain).catch(() => ({
+      rank: null,
+      isTopSite: false,
+      authority: 'low' as const
+    }));
+
+    // Post-process: fraud-only risk scoring with context classification
+    const victimCount = report.evidence?.filter((e: any) => 
+      e.is_victim_of_impersonation === true
+    ).length || 0;
+    
+    const actualFraudCount = report.evidence?.filter((e: any) => 
+      e.labels?.fraud_intent?.length > 0 && e.is_victim_of_impersonation !== true
     ).length || 0;
     
     const hasRegulatorWarning = report.evidence?.some((e: any) => 
@@ -318,19 +466,30 @@ export async function GET(request: NextRequest) {
     let adjustedRisk = report.risk_score || 50;
     let adjustedVerdict = report.verdict || 'caution';
     
-    // DANGER only if: raw≥60 AND (≥2 fraud-intent OR regulator warning)
-    if (adjustedRisk >= 60 && (fraudCount >= 2 || hasRegulatorWarning)) {
+    // Apply domain authority discount
+    if (domainAuth.authority === 'high' && victimCount >= actualFraudCount) {
+      // Top 1000 site with mostly victim evidence → major discount
+      adjustedRisk = Math.max(15, adjustedRisk * 0.25);
+      console.log(`High authority site (rank ${domainAuth.rank}): applying 75% discount`);
+    }
+    else if (domainAuth.authority === 'medium' && victimCount > 0) {
+      // Established site with some victim evidence → moderate discount  
+      adjustedRisk = adjustedRisk * 0.6;
+    }
+    
+    // DANGER only if: raw≥60 AND (≥2 ACTUAL fraud-intent OR regulator warning)
+    if (adjustedRisk >= 60 && (actualFraudCount >= 2 || hasRegulatorWarning)) {
       adjustedVerdict = 'danger';
     }
-    // SAFE only if: raw≤25 AND zero fraud-intent AND ≥2 credible sources
-    else if (adjustedRisk <= 25 && fraudCount === 0 && (report.evidence?.length || 0) >= 2) {
+    // SAFE only if: raw≤30 AND zero ACTUAL fraud-intent AND ≥2 credible sources
+    else if (adjustedRisk <= 30 && actualFraudCount === 0 && (report.evidence?.length || 0) >= 2) {
       adjustedVerdict = 'safe';
     }
     // Otherwise CAUTION
     else {
       adjustedVerdict = 'caution';
       // Cap risk if only dissatisfaction, no fraud
-      if (fraudCount === 0) {
+      if (actualFraudCount === 0) {
         adjustedRisk = Math.min(adjustedRisk, 50);
       }
     }
@@ -339,7 +498,7 @@ export async function GET(request: NextRequest) {
     const verdict = VERDICT_ENUM.includes(adjustedVerdict) ? adjustedVerdict : 'caution';
 
     // Calculate radar metrics
-    const radarMetrics = calculateRadarMetrics(report, allResults, riskScore);
+    const radarMetrics = calculateRadarMetrics(report, allResults, riskScore, domainAuth, actualFraudCount, victimCount);
 
     const finalReport: TrustReport = {
       risk_score: riskScore,
@@ -351,7 +510,11 @@ export async function GET(request: NextRequest) {
       sources: queries,
       radar_metrics: radarMetrics,
       evidence: report.evidence || [],
-      aggregates: report.aggregates || { stance_counts: { negative: 0, neutral: 0, positive: 0 } }
+      aggregates: report.aggregates || { stance_counts: { negative: 0, neutral: 0, positive: 0 } },
+      domain_authority: {
+        rank: domainAuth.rank,
+        authority: domainAuth.authority
+      }
     };
 
     return NextResponse.json(finalReport, { headers });
