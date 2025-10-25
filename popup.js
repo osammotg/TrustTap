@@ -133,6 +133,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       citationsEl.appendChild(div);
     }
 
+    // Update sources
+    const sourcesListEl = document.getElementById('sourcesList');
+    const sourcesToggle = document.getElementById('sourcesToggle');
+
+    if (data.sources && data.sources.length > 0) {
+      sourcesListEl.innerHTML = '';
+      data.sources.forEach(source => {
+        const div = document.createElement('div');
+        div.textContent = source;
+        sourcesListEl.appendChild(div);
+      });
+      
+      // Toggle functionality
+      sourcesToggle.addEventListener('click', () => {
+        sourcesListEl.classList.toggle('expanded');
+        sourcesToggle.textContent = sourcesListEl.classList.contains('expanded')
+          ? 'Search Queries Used ▲'
+          : 'Search Queries Used ▼';
+      });
+    }
+
     // Show results
     resultsDiv.style.display = 'block';
     errorDiv.style.display = 'none';

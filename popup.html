@@ -173,6 +173,35 @@
       border-bottom: none;
     }
 
+    .sources {
+      margin-top: 16px;
+    }
+
+    .sources h3 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .sources-list {
+      display: none;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .sources-list.expanded {
+      display: block;
+    }
+
+    .sources-list div {
+      padding: 4px 8px;
+      margin: 4px 0;
+      background: #f8f9fa;
+      border-left: 3px solid #007bff;
+      border-radius: 2px;
+      font-family: monospace;
+    }
+
     .error {
       color: #dc3545;
       background: #f8d7da;
@@ -226,6 +255,15 @@
       <div class="citations">
         <h3>Citations</h3>
         <div id="citations"></div>
+      </div>
+
+      <div class="sources">
+        <h3 style="cursor: pointer; user-select: none;" id="sourcesToggle">
+          Search Queries Used ▼
+        </h3>
+        <div id="sourcesList" class="sources-list">
+          <!-- Will be populated by JS -->
+        </div>
       </div>
     </div>
 

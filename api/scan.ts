@@ -26,6 +26,7 @@ interface TrustReport {
   positives: string[];
   negatives: string[];
   citations: { title: string; url: string }[];
+  sources: string[];
 }
 
 async function searchTavily(query: string): Promise<TavilyResult[]> {
@@ -196,7 +197,8 @@ export async function GET(request: NextRequest) {
       summary: report.summary || 'Analysis incomplete',
       positives: Array.isArray(report.positives) ? report.positives : [],
       negatives: Array.isArray(report.negatives) ? report.negatives : [],
-      citations: Array.isArray(report.citations) ? report.citations : []
+      citations: Array.isArray(report.citations) ? report.citations : [],
+      sources: queries
     };
 
     return NextResponse.json(finalReport, { headers });
@@ -210,7 +212,8 @@ export async function GET(request: NextRequest) {
       summary: "Analysis failed due to technical error",
       positives: [],
       negatives: [],
-      citations: []
+      citations: [],
+      sources: []
     };
 
     return NextResponse.json(fallbackReport, { headers });
