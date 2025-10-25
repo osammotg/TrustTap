@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrustTap Analysis</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+      color: #333;
+      background: #fff;
+    }
+
+    .container {
+      padding: 16px;
+    }
+
+    .header {
+      margin-bottom: 16px;
+    }
+
+    .domain-section {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    #domain {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    #scanBtn {
+      padding: 8px 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #scanBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #007bff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .results {
+      display: none;
+    }
+
+    .score-section {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .score {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .verdict {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-weight: bold;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .verdict.safe {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .verdict.caution {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .verdict.danger {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .summary {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #666;
+    }
+
+    .section ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .section li {
+      padding: 4px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .section li:last-child {
+      border-bottom: none;
+    }
+
+    .negatives li {
+      color: #dc3545;
+    }
+
+    .positives li {
+      color: #28a745;
+    }
+
+    .citations {
+      margin-top: 16px;
+    }
+
+    .citations a {
+      display: block;
+      padding: 6px 0;
+      color: #007bff;
+      text-decoration: none;
+      font-size: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .citations a:hover {
+      text-decoration: underline;
+    }
+
+    .citations a:last-child {
+      border-bottom: none;
+    }
+
+    .error {
+      color: #dc3545;
+      background: #f8d7da;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+
+    .disclaimer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>TrustTap Analysis</h2>
+    </div>
+
+    <div class="domain-section">
+      <input type="text" id="domain" placeholder="Domain to analyze" readonly>
+      <button id="scanBtn">Scan</button>
+      <div class="spinner" id="spinner"></div>
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="results" class="results">
+      <div class="score-section">
+        <div class="score" id="score">--</div>
+        <div class="verdict" id="verdict">--</div>
+      </div>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="section negatives">
+        <h3>Red Flags</h3>
+        <ul id="negList"></ul>
+      </div>
+
+      <div class="section positives">
+        <h3>Green Signals</h3>
+        <ul id="posList"></ul>
+      </div>
+
+      <div class="citations">
+        <h3>Citations</h3>
+        <div id="citations"></div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      Advisory only. Verify sources.
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
