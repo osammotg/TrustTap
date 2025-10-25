@@ -554,10 +554,12 @@
       align-items: center;
       gap: 8px;
       backdrop-filter: blur(10px);
+      pointer-events: none;
     }
 
     .floating-help-btn.show {
       display: flex;
+      pointer-events: auto;
     }
 
     .floating-help-btn:hover {
@@ -590,11 +592,13 @@
       z-index: 2000;
       opacity: 0;
       transition: opacity 0.3s ease;
+      pointer-events: none;
     }
 
     .modal-overlay.show {
       display: flex;
       opacity: 1;
+      pointer-events: auto;
     }
 
     /* Modal Content */
