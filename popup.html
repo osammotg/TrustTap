@@ -119,6 +119,18 @@
       font-size: 13px;
     }
 
+    .fraud-badge {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #1dd1a1 0%, #10ac84 100%);
+      border-radius: 8px;
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(29, 209, 161, 0.3);
+    }
+
     .trust-metrics {
       margin-bottom: 16px;
       padding: 16px;
@@ -489,6 +501,9 @@
       </div>
 
       <div class="summary" id="summary"></div>
+      <div id="fraudBadge" class="fraud-badge" style="display: none;">
+        ✅ No fraud indicators detected
+      </div>
 
       <div class="trust-metrics">
         <div class="metrics-title">Multi-Dimensional Trust Analysis</div>

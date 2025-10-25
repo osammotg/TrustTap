@@ -87,6 +87,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const summaryEl = document.getElementById('summary');
     summaryEl.textContent = data.summary || 'No summary available';
 
+    // Show fraud badge if no fraud indicators
+    const fraudBadge = document.getElementById('fraudBadge');
+    const hasFraudIntent = data.evidence?.some(e => 
+      e.labels?.fraud_intent?.length > 0
+    );
+    const hasOnlyDissatisfaction = data.evidence?.some(e => 
+      e.labels?.dissatisfaction?.length > 0
+    );
+    
+    if (!hasFraudIntent && hasOnlyDissatisfaction && fraudBadge) {
+      fraudBadge.style.display = 'block';
+    } else if (fraudBadge) {
+      fraudBadge.style.display = 'none';
+    }
+
     // Update negatives
     const negListEl = document.getElementById('negList');
     negListEl.innerHTML = '';

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const MAX_RESULTS = 4;
-const EVIDENCE_CAP = 10;
+const EVIDENCE_CAP = 12;
 const LATENCY_S = 5;
 const CONSERVATIVE = true;
 const MIN_CITATIONS_SAFE = 2;
@@ -36,6 +35,8 @@ interface TrustReport {
   citations: { title: string; url: string }[];
   sources: string[];
   radar_metrics: RadarMetrics;
+  evidence?: any[];
+  aggregates?: any;
 }
 
 async function searchTavily(query: string): Promise<TavilyResult[]> {
@@ -47,7 +48,7 @@ async function searchTavily(query: string): Promise<TavilyResult[]> {
     },
     body: JSON.stringify({
       query,
-      max_results: MAX_RESULTS,
+      max_results: 3, // 3 per query
       include_answer: false
     })
   });
@@ -58,6 +59,40 @@ async function searchTavily(query: string): Promise<TavilyResult[]> {
 
   const data = await response.json();
   return data.results || [];
+}
+
+// Enrich evidence with metadata
+function enrichEvidence(evidence: Evidence[], targetDomain: string) {
+  return evidence.map(e => {
+    const url = new URL(e.url);
+    const hostname = url.hostname;
+    
+    // Guess source_type
+    let source_type = 'other';
+    if (/trustpilot|g2|capterra|yelp|tripadvisor/.test(hostname)) source_type = 'reviews';
+    else if (/reddit|quora|forum/.test(hostname)) source_type = 'forum';
+    else if (/news|journalism|press/.test(hostname) || /\.news|cnn|bbc|reuters/.test(hostname)) source_type = 'news';
+    else if (/bbb\.org|ftc\.gov|sec\.gov/.test(hostname)) source_type = 'regulator';
+    else if (/press-release|pr\.com|newswire/.test(hostname || e.content.toLowerCase())) source_type = 'press';
+    
+    // Best-effort rating/review_count parsing
+    let rating: number | null = null;
+    let review_count: number | null = null;
+    
+    const ratingMatch = e.content.match(/(\d\.\d)\s*(out of|\/)\s*5|rating[:\s]+(\d\.\d)/i);
+    if (ratingMatch) rating = parseFloat(ratingMatch[1] || ratingMatch[3]);
+    
+    const reviewMatch = e.content.match(/(\d{1,3}(?:,\d{3})*)\s*reviews?/i);
+    if (reviewMatch) review_count = parseInt(reviewMatch[1].replace(/,/g, ''));
+    
+    return {
+      ...e,
+      domain: hostname,
+      source_type,
+      rating,
+      review_count
+    };
+  });
 }
 
 function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: number): RadarMetrics {
@@ -117,7 +152,7 @@ async function analyzeWithOpenAI(domain: string, evidence: Evidence[]): Promise<
       messages: [
         {
           role: 'system',
-          content: 'You are a strict website risk analyst. Return STRICT JSON only. Use ONLY provided evidence. No hallucinations. Consider fraud/phishing signals, customer complaints, regulatory actions, reputable listings, positive press.'
+          content: 'You are a strict website risk analyst. Return STRICT JSON only. Use ONLY provided evidence. No hallucinations. Classify dissatisfaction separately from fraud intent. Do NOT mark a site as "danger" without ≥2 independent fraud-intent sources or a regulator warning. If evidence is mostly dissatisfaction and no fraud-intent, cap verdict at "caution". Consider positive signals (ratings ≥4.3 with large review_count, reputable press/partnerships) as risk reducers.'
         },
         {
           role: 'user',
@@ -125,18 +160,39 @@ async function analyzeWithOpenAI(domain: string, evidence: Evidence[]): Promise<
         },
         {
           role: 'user',
-          content: `Return JSON with fields:
+          content: `Return JSON with exact structure:
 {
   "risk_score": 0-100,
   "verdict": ${JSON.stringify(VERDICT_ENUM)},
   "summary": string,
   "positives": string[],
   "negatives": string[],
-  "citations": [{"title": string, "url": string}]
+  "citations": [{"title": string, "url": string}],
+  "evidence": [
+    {
+      "title": string, "url": string, "snippet": string, "domain": string,
+      "source_type": "reviews"|"forum"|"news"|"regulator"|"press"|"other",
+      "stance": "negative"|"neutral"|"positive",
+      "rationale": string,
+      "credibility": number (0..1),
+      "rating": number|null (0..5 if parseable),
+      "review_count": number|null,
+      "labels": {
+        "fraud_intent": string[] (from: phishing, non_delivery, unauthorized_charge, impersonation, counterfeit, chargeback_spike),
+        "dissatisfaction": string[] (from: slow_shipping, poor_support, refund_delay, high_price, UX_issues)
+      }
+    }
+  ],
+  "aggregates": {
+    "stance_counts": { "negative": number, "neutral": number, "positive": number }
+  }
 }
-- Citations MUST be a subset of the provided evidence.
-- If conservative mode is ${CONSERVATIVE}, require at least ${MIN_CITATIONS_SAFE} citations referencing reputable sources to output "safe"; otherwise output "caution".
-- If evidence is sparse or conflicting, bias toward "caution".`
+Rules:
+- Use ONLY supplied evidence. No hallucinations.
+- Classify dissatisfaction separately from fraud intent.
+- Do NOT mark "danger" without ≥2 independent fraud-intent sources OR regulator warning.
+- If mostly dissatisfaction + no fraud-intent, cap at "caution".
+- Positive signals reduce risk.`
         }
       ]
     })
@@ -190,13 +246,21 @@ export async function GET(request: NextRequest) {
     const domainParts = domain.replace(/^www\./, '').split('.');
     const rootBrand = domainParts.length >= 2 ? domainParts[domainParts.length - 2] : domainParts[0];
 
-    // Build search queries
+    // Build search queries: fraud-intent + positive-balance
     const queries = [
-      `${domain} reviews`,
-      `${domain} scam`,
+      `${domain} fraud`,
+      `${domain} phishing`,
+      `${domain} unauthorized charge`,
+      `${domain} never received`,
+      `${domain} counterfeit`,
+      `${domain} chargeback`,
+      `${domain} bbb complaints`,
+      `${domain} awards`,
+      `${domain} case study`,
+      `${domain} partnership`,
+      `${domain} press release`,
       `site:trustpilot.com ${domain}`,
-      `site:reddit.com ${rootBrand}`,
-      `${rootBrand} news`
+      `site:reddit.com ${rootBrand}`
     ];
 
     // Execute searches with timeout
@@ -236,12 +300,43 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Analyze with OpenAI
-    const report = await analyzeWithOpenAI(domain, allResults);
+    // Enrich evidence before analysis
+    const enrichedEvidence = enrichEvidence(allResults, domain);
 
-    // Validate and clamp results
-    const riskScore = Math.max(0, Math.min(100, report.risk_score || 50));
-    const verdict = VERDICT_ENUM.includes(report.verdict) ? report.verdict : 'caution';
+    // Analyze with OpenAI
+    const report = await analyzeWithOpenAI(domain, enrichedEvidence);
+
+    // Post-process: fraud-only risk scoring
+    const fraudCount = report.evidence?.filter((e: any) => 
+      e.labels?.fraud_intent?.length > 0
+    ).length || 0;
+    
+    const hasRegulatorWarning = report.evidence?.some((e: any) => 
+      e.source_type === 'regulator' && e.stance === 'negative'
+    ) || false;
+    
+    let adjustedRisk = report.risk_score || 50;
+    let adjustedVerdict = report.verdict || 'caution';
+    
+    // DANGER only if: raw≥60 AND (≥2 fraud-intent OR regulator warning)
+    if (adjustedRisk >= 60 && (fraudCount >= 2 || hasRegulatorWarning)) {
+      adjustedVerdict = 'danger';
+    }
+    // SAFE only if: raw≤25 AND zero fraud-intent AND ≥2 credible sources
+    else if (adjustedRisk <= 25 && fraudCount === 0 && (report.evidence?.length || 0) >= 2) {
+      adjustedVerdict = 'safe';
+    }
+    // Otherwise CAUTION
+    else {
+      adjustedVerdict = 'caution';
+      // Cap risk if only dissatisfaction, no fraud
+      if (fraudCount === 0) {
+        adjustedRisk = Math.min(adjustedRisk, 50);
+      }
+    }
+
+    const riskScore = Math.max(0, Math.min(100, adjustedRisk));
+    const verdict = VERDICT_ENUM.includes(adjustedVerdict) ? adjustedVerdict : 'caution';
 
     // Calculate radar metrics
     const radarMetrics = calculateRadarMetrics(report, allResults, riskScore);
@@ -254,7 +349,9 @@ export async function GET(request: NextRequest) {
       negatives: Array.isArray(report.negatives) ? report.negatives : [],
       citations: Array.isArray(report.citations) ? report.citations : [],
       sources: queries,
-      radar_metrics: radarMetrics
+      radar_metrics: radarMetrics,
+      evidence: report.evidence || [],
+      aggregates: report.aggregates || { stance_counts: { negative: 0, neutral: 0, positive: 0 } }
     };
 
     return NextResponse.json(finalReport, { headers });
@@ -276,7 +373,9 @@ export async function GET(request: NextRequest) {
         reviews: 50,
         transparency: 50,
         trustworthiness: 50
-      }
+      },
+      evidence: [],
+      aggregates: { stance_counts: { negative: 0, neutral: 0, positive: 0 } }
     };
 
     return NextResponse.json(fallbackReport, { headers });
