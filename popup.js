@@ -163,8 +163,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Create charts
-    createCharts(data);
+    // Create charts (with fallback for Chart.js loading)
+    if (typeof Chart !== 'undefined') {
+      createCharts(data);
+    } else {
+      // Wait for Chart.js to load
+      const checkChart = setInterval(() => {
+        if (typeof Chart !== 'undefined') {
+          clearInterval(checkChart);
+          createCharts(data);
+        }
+      }, 100);
+      
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        clearInterval(checkChart);
+        console.error('Chart.js failed to load');
+      }, 5000);
+    }
 
     // Show results
     resultsDiv.style.display = 'block';
@@ -172,6 +188,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function createCharts(data) {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js not loaded');
+      return;
+    }
+
     // Destroy existing charts
     if (riskChart) riskChart.destroy();
     if (stanceChart) stanceChart.destroy();
