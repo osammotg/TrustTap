@@ -236,12 +236,20 @@ function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: num
   // Transparency: based on citations and evidence quality
   const transparency = citationCount > 0 ? 100 : 50;
   
-  // Trustworthiness: based on actual fraud vs victim context
-  const trustworthiness = actualFraudCount === 0 && victimCount && victimCount > 0 
-    ? 85 
-    : actualFraudCount && actualFraudCount > 0 
-      ? 40 
-      : 60;
+  // Trustworthiness: considers authority + fraud severity
+  const trustworthiness = domainAuth?.authority === 'high'
+    ? actualFraudCount === 0 
+      ? 95  // High authority, no fraud
+      : actualFraudCount <= 2
+        ? 75  // High authority, minor complaints
+        : actualFraudCount <= 4
+          ? 60  // High authority, moderate complaints
+          : 45  // High authority, many complaints
+    : actualFraudCount === 0 && victimCount && victimCount > 0
+      ? 85  // Medium/low authority, victim of impersonation
+      : actualFraudCount && actualFraudCount > 0
+        ? 40  // Medium/low authority with fraud
+        : 60; // Medium/low authority, neutral
   
   return {
     security,
@@ -485,6 +493,16 @@ export async function GET(request: NextRequest) {
       e.labels?.fraud_intent?.length > 0 && e.is_victim_of_impersonation !== true
     ).length || 0;
     
+    // Detect marketplace/third-party seller issues
+    const marketplaceIssues = report.evidence?.filter((e: any) => {
+      const content = (e.title + ' ' + e.snippet + ' ' + (e.rationale || '')).toLowerCase();
+      return content.includes('seller') ||
+             content.includes('third-party') ||
+             content.includes('third party') ||
+             content.includes('marketplace') ||
+             content.includes('vendor');
+    }).length || 0;
+    
     const hasRegulatorWarning = report.evidence?.some((e: any) => 
       e.source_type === 'regulator' && e.stance === 'negative'
     ) || false;
@@ -492,36 +510,74 @@ export async function GET(request: NextRequest) {
     let adjustedRisk = report.risk_score || 50;
     let adjustedVerdict = report.verdict || 'caution';
     
-    // Apply domain authority discount
-    if (domainAuth.authority === 'high' && victimCount >= actualFraudCount) {
-      // Top 1000 site with mostly victim evidence → major discount
-      adjustedRisk = Math.max(15, adjustedRisk * 0.25);
-      console.log(`High authority site (rank ${domainAuth.rank}): applying 75% discount`);
+    // Apply aggressive domain authority discount
+    if (domainAuth.authority === 'high') {
+      // High authority sites get major discount based on fraud severity
+      if (actualFraudCount === 0) {
+        adjustedRisk = Math.max(10, adjustedRisk * 0.15); // 85% discount, no fraud
+        console.log(`High authority discount: ${actualFraudCount} fraud items, ${report.risk_score} → ${adjustedRisk} (85% discount)`);
+      } else if (actualFraudCount <= 2) {
+        adjustedRisk = Math.max(20, adjustedRisk * 0.35); // 65% discount, minor complaints
+        console.log(`High authority discount: ${actualFraudCount} fraud items, ${report.risk_score} → ${adjustedRisk} (65% discount)`);
+      } else if (actualFraudCount <= 4) {
+        adjustedRisk = Math.max(30, adjustedRisk * 0.5);  // 50% discount, moderate complaints
+        console.log(`High authority discount: ${actualFraudCount} fraud items, ${report.risk_score} → ${adjustedRisk} (50% discount)`);
+      } else {
+        adjustedRisk = Math.max(40, adjustedRisk * 0.6);  // 40% discount, many complaints
+        console.log(`High authority discount: ${actualFraudCount} fraud items, ${report.risk_score} → ${adjustedRisk} (40% discount)`);
+      }
     }
     else if (domainAuth.authority === 'medium' && victimCount > 0) {
       // Established site with some victim evidence → moderate discount  
       adjustedRisk = adjustedRisk * 0.6;
+      console.log(`Medium authority discount: ${report.risk_score} → ${adjustedRisk} (40% discount)`);
     }
     
-    // DANGER only if: raw≥60 AND (≥2 ACTUAL fraud-intent OR regulator warning)
-    if (adjustedRisk >= 60 && (actualFraudCount >= 2 || hasRegulatorWarning)) {
-      adjustedVerdict = 'danger';
+    // If high-authority with marketplace issues, apply additional discount
+    if (domainAuth.authority === 'high' && marketplaceIssues >= actualFraudCount * 0.5) {
+      adjustedRisk = adjustedRisk * 0.7; // Additional 30% discount
+      console.log(`Marketplace discount applied: ${marketplaceIssues} marketplace issues, ${adjustedRisk / 0.7} → ${adjustedRisk}`);
     }
-    // SAFE only if: raw≤30 AND zero ACTUAL fraud-intent AND ≥2 credible sources
-    else if (adjustedRisk <= 30 && actualFraudCount === 0 && (report.evidence?.length || 0) >= 2) {
-      adjustedVerdict = 'safe';
-    }
-    // Otherwise CAUTION
-    else {
-      adjustedVerdict = 'caution';
-      // Cap risk if only dissatisfaction, no fraud
-      if (actualFraudCount === 0) {
-        adjustedRisk = Math.min(adjustedRisk, 50);
+    
+    // Authority-based verdict thresholds
+    if (domainAuth.authority === 'high') {
+      // High-authority domains need higher thresholds for DANGER
+      if (adjustedRisk >= 70 && actualFraudCount >= 4) {
+        adjustedVerdict = 'danger';
+      } else if (adjustedRisk <= 35) {
+        adjustedVerdict = 'safe';
+      } else {
+        adjustedVerdict = 'caution';
+      }
+    } else {
+      // Standard thresholds for other domains
+      if (adjustedRisk >= 60 && (actualFraudCount >= 2 || hasRegulatorWarning)) {
+        adjustedVerdict = 'danger';
+      } else if (adjustedRisk <= 30 && actualFraudCount === 0 && (report.evidence?.length || 0) >= 2) {
+        adjustedVerdict = 'safe';
+      } else {
+        adjustedVerdict = 'caution';
+        // Cap risk if only dissatisfaction, no fraud
+        if (actualFraudCount === 0) {
+          adjustedRisk = Math.min(adjustedRisk, 50);
+        }
       }
     }
 
     const riskScore = Math.max(0, Math.min(100, adjustedRisk));
     const verdict = VERDICT_ENUM.includes(adjustedVerdict) ? adjustedVerdict : 'caution';
+    
+    // Enhanced console logging for debugging
+    console.log('Risk Scoring Debug:', {
+      domain,
+      authority: domainAuth.authority,
+      rawScore: report.risk_score,
+      actualFraudCount,
+      victimCount,
+      marketplaceIssues,
+      adjustedRisk,
+      verdict: adjustedVerdict
+    });
 
     // Calculate radar metrics
     const radarMetrics = calculateRadarMetrics(report, allResults, riskScore, domainAuth, actualFraudCount, victimCount);
