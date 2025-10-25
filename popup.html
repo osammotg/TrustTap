@@ -119,99 +119,116 @@
       font-size: 13px;
     }
 
-    .radar-section {
+    .trust-metrics {
       margin-bottom: 16px;
       padding: 16px;
-      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-      border-radius: 8px;
-      border: 1px solid #e9ecef;
-    }
-
-    .radar-container {
-      text-align: center;
-      margin-bottom: 12px;
-    }
-
-    .radar-container canvas {
-      max-width: 100%;
-      height: auto;
-    }
-
-    .radar-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      background: white;
+      background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
       border-radius: 12px;
-      font-size: 11px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid #e0e0e0;
     }
 
-    .legend-icon {
-      font-size: 14px;
-    }
-
-    .legend-text {
-      color: #666;
-      font-weight: 500;
-    }
-
-    .radar-fallback {
-      text-align: center;
-      padding: 20px;
-      background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      color: white;
-    }
-
-    .fallback-title {
-      font-size: 18px;
+    .metrics-title {
+      font-size: 15px;
       font-weight: 700;
-      color: white;
+      color: #333;
       margin-bottom: 16px;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      text-align: center;
+      letter-spacing: 0.5px;
     }
 
-    .radar-scores {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
+    .metric-item {
+      margin-bottom: 14px;
     }
 
-    .score-item {
+    .metric-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .metric-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 12px 16px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      font-size: 14px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      justify-content: space-between;
+      margin-bottom: 6px;
     }
 
-    .score-label {
-      font-weight: 600;
-      color: white;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    .metric-icon {
+      font-size: 18px;
+      margin-right: 8px;
     }
 
-    .score-value {
-      font-weight: 700;
-      color: #fff;
-      background: rgba(255, 255, 255, 0.3);
-      padding: 4px 8px;
-      border-radius: 12px;
+    .metric-name {
+      flex: 1;
       font-size: 13px;
+      font-weight: 600;
+      color: #444;
+    }
+
+    .metric-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #667eea;
+      min-width: 45px;
+      text-align: right;
+    }
+
+    .metric-bar-bg {
+      height: 10px;
+      background: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .metric-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 10px;
+      transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      position: relative;
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+
+    .metric-bar.low {
+      background: linear-gradient(90deg, #ff6b6b 0%, #ee5a52 100%);
+      box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+    }
+
+    .metric-bar.medium {
+      background: linear-gradient(90deg, #feca57 0%, #ff9ff3 100%);
+      box-shadow: 0 2px 4px rgba(254, 202, 87, 0.3);
+    }
+
+    .metric-bar.high {
+      background: linear-gradient(90deg, #48dbfb 0%, #0abde3 100%);
+      box-shadow: 0 2px 4px rgba(72, 219, 251, 0.3);
+    }
+
+    .metric-bar.excellent {
+      background: linear-gradient(90deg, #1dd1a1 0%, #10ac84 100%);
+      box-shadow: 0 2px 4px rgba(29, 209, 161, 0.3);
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .metric-bar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+      );
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
     }
 
     .section {
@@ -473,34 +490,61 @@
 
       <div class="summary" id="summary"></div>
 
-      <div class="radar-section">
-        <div class="radar-container">
-          <canvas id="radarChart" width="280" height="280"></canvas>
-          <div id="radarFallback" class="radar-fallback" style="display: none;">
-            <div class="fallback-title">Trust Assessment</div>
-            <div id="radarScores" class="radar-scores"></div>
+      <div class="trust-metrics">
+        <div class="metrics-title">Multi-Dimensional Trust Analysis</div>
+        
+        <div class="metric-item">
+          <div class="metric-header">
+            <span class="metric-icon">🛡️</span>
+            <span class="metric-name">Security</span>
+            <span class="metric-value" id="securityValue">0</span>
+          </div>
+          <div class="metric-bar-bg">
+            <div class="metric-bar" id="securityBar" data-score="0"></div>
           </div>
         </div>
-        <div class="radar-legend">
-          <div class="legend-item">
-            <span class="legend-icon">🛡️</span>
-            <span class="legend-text">Security</span>
+
+        <div class="metric-item">
+          <div class="metric-header">
+            <span class="metric-icon">⭐</span>
+            <span class="metric-name">Reputation</span>
+            <span class="metric-value" id="reputationValue">0</span>
           </div>
-          <div class="legend-item">
-            <span class="legend-icon">⭐</span>
-            <span class="legend-text">Reputation</span>
+          <div class="metric-bar-bg">
+            <div class="metric-bar" id="reputationBar" data-score="0"></div>
           </div>
-          <div class="legend-item">
-            <span class="legend-icon">📝</span>
-            <span class="legend-text">Reviews</span>
+        </div>
+
+        <div class="metric-item">
+          <div class="metric-header">
+            <span class="metric-icon">📝</span>
+            <span class="metric-name">Reviews</span>
+            <span class="metric-value" id="reviewsValue">0</span>
           </div>
-          <div class="legend-item">
-            <span class="legend-icon">🔍</span>
-            <span class="legend-text">Transparency</span>
+          <div class="metric-bar-bg">
+            <div class="metric-bar" id="reviewsBar" data-score="0"></div>
           </div>
-          <div class="legend-item">
-            <span class="legend-icon">✅</span>
-            <span class="legend-text">Trust</span>
+        </div>
+
+        <div class="metric-item">
+          <div class="metric-header">
+            <span class="metric-icon">🔍</span>
+            <span class="metric-name">Transparency</span>
+            <span class="metric-value" id="transparencyValue">0</span>
+          </div>
+          <div class="metric-bar-bg">
+            <div class="metric-bar" id="transparencyBar" data-score="0"></div>
+          </div>
+        </div>
+
+        <div class="metric-item">
+          <div class="metric-header">
+            <span class="metric-icon">✅</span>
+            <span class="metric-name">Trustworthiness</span>
+            <span class="metric-value" id="trustValue">0</span>
+          </div>
+          <div class="metric-bar-bg">
+            <div class="metric-bar" id="trustBar" data-score="0"></div>
           </div>
         </div>
       </div>

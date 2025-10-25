@@ -1,7 +1,5 @@
 const API_BASE = "https://trust-cap.vercel.app/api/scan";
 
-let radarChart = null;
-
 document.addEventListener('DOMContentLoaded', async () => {
   const domainInput = document.getElementById('domain');
   const scanBtn = document.getElementById('scanBtn');
@@ -162,37 +160,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Create radar chart (with fallback for Chart.js loading)
-    if (typeof Chart !== 'undefined') {
-      createRadarChart(data);
-    } else {
-      // Wait for Chart.js to load
-      const checkChart = setInterval(() => {
-        if (typeof Chart !== 'undefined') {
-          clearInterval(checkChart);
-          createRadarChart(data);
-        }
-      }, 100);
-      
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        clearInterval(checkChart);
-        console.error('Chart.js failed to load');
-      }, 5000);
-    }
+    // Animate trust metrics bars
+    animateTrustMetrics(data);
 
     // Show results
     resultsDiv.style.display = 'block';
     errorDiv.style.display = 'none';
   }
 
-  function createRadarChart(data) {
-    console.log('=== CHART DEBUG START ===');
-    console.log('Chart.js available:', typeof Chart !== 'undefined');
-    console.log('Data received:', data);
-    console.log('Radar metrics:', data.radar_metrics);
-
-    // Always show fallback first
+  function animateTrustMetrics(data) {
     const metrics = data.radar_metrics || {
       security: 50,
       reputation: 50,
@@ -201,124 +177,53 @@ document.addEventListener('DOMContentLoaded', async () => {
       trustworthiness: 50
     };
 
-    // Show fallback immediately
-    showRadarFallback(metrics);
+    const metricsConfig = [
+      { id: 'security', value: metrics.security, label: 'Security' },
+      { id: 'reputation', value: metrics.reputation, label: 'Reputation' },
+      { id: 'reviews', value: metrics.reviews, label: 'Reviews' },
+      { id: 'transparency', value: metrics.transparency, label: 'Transparency' },
+      { id: 'trust', value: metrics.trustworthiness, label: 'Trust' }
+    ];
 
-    // Try to create chart if Chart.js is available
-    if (typeof Chart === 'undefined') {
-      console.error('Chart.js not loaded - using fallback only');
-      return;
-    }
-
-    const radarCanvas = document.getElementById('radarChart');
-    if (!radarCanvas) {
-      console.error('Radar chart canvas not found');
-      return;
-    }
-
-    try {
-      // Destroy existing chart
-      if (radarChart) radarChart.destroy();
-
-      console.log('Creating radar chart...');
+    metricsConfig.forEach((metric, index) => {
+      const bar = document.getElementById(`${metric.id}Bar`);
+      const valueDisplay = document.getElementById(`${metric.id}Value`);
       
-      radarChart = new Chart(radarCanvas, {
-        type: 'radar',
-        data: {
-          labels: ['Security', 'Reputation', 'Reviews', 'Transparency', 'Trust'],
-          datasets: [{
-            label: 'Trust Assessment',
-            data: [
-              metrics.security,
-              metrics.reputation,
-              metrics.reviews,
-              metrics.transparency,
-              metrics.trustworthiness
-            ],
-            backgroundColor: 'rgba(255, 0, 0, 0.3)',
-            borderColor: 'rgba(255, 0, 0, 1)',
-            borderWidth: 3,
-            pointBackgroundColor: 'rgba(255, 0, 0, 1)',
-            pointBorderColor: '#fff',
-            pointRadius: 6,
-            pointHoverRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            r: {
-              beginAtZero: true,
-              max: 100,
-              ticks: {
-                stepSize: 20,
-                color: '#000',
-                font: { size: 12, weight: 'bold' }
-              },
-              pointLabels: {
-                color: '#000',
-                font: { size: 14, weight: 'bold' }
-              },
-              grid: {
-                color: '#000'
-              },
-              angleLines: {
-                color: '#000'
-              }
-            }
-          },
-          plugins: {
-            legend: { display: false }
-          }
-        }
-      });
-
-      console.log('Chart created successfully');
-      
-      // Hide fallback if chart works
-      setTimeout(() => {
-        const fallback = document.getElementById('radarFallback');
-        if (fallback && radarChart) {
-          fallback.style.display = 'none';
-        }
-      }, 1000);
-
-    } catch (error) {
-      console.error('Chart creation failed:', error);
-    }
-
-    console.log('=== CHART DEBUG END ===');
+      if (bar && valueDisplay) {
+        // Determine color class based on score
+        let colorClass = 'low';
+        if (metric.value >= 75) colorClass = 'excellent';
+        else if (metric.value >= 60) colorClass = 'high';
+        else if (metric.value >= 40) colorClass = 'medium';
+        
+        // Remove existing color classes
+        bar.classList.remove('low', 'medium', 'high', 'excellent');
+        bar.classList.add(colorClass);
+        
+        // Animate with delay
+        setTimeout(() => {
+          bar.style.width = `${metric.value}%`;
+          
+          // Animate number counting up
+          animateValue(valueDisplay, 0, metric.value, 1000);
+        }, index * 150); // Stagger animation
+      }
+    });
   }
 
-  function showRadarFallback(metrics) {
-    const canvas = document.getElementById('radarChart');
-    const fallback = document.getElementById('radarFallback');
-    const scoresContainer = document.getElementById('radarScores');
+  function animateValue(element, start, end, duration) {
+    const range = end - start;
+    const increment = range / (duration / 16); // 60fps
+    let current = start;
     
-    if (canvas) canvas.style.display = 'none';
-    if (fallback) fallback.style.display = 'block';
-    
-    if (scoresContainer) {
-      scoresContainer.innerHTML = '';
-      const scoreItems = [
-        { label: '🛡️ Security', value: metrics.security },
-        { label: '⭐ Reputation', value: metrics.reputation },
-        { label: '📝 Reviews', value: metrics.reviews },
-        { label: '🔍 Transparency', value: metrics.transparency },
-        { label: '✅ Trust', value: metrics.trustworthiness }
-      ];
-      
-      scoreItems.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'score-item';
-        div.innerHTML = `
-          <span class="score-label">${item.label}</span>
-          <span class="score-value">${item.value}/100</span>
-        `;
-        scoresContainer.appendChild(div);
-      });
-    }
+    const timer = setInterval(() => {
+      current += increment;
+      if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+        current = end;
+        clearInterval(timer);
+      }
+      element.textContent = Math.round(current) + '/100';
+    }, 16);
   }
 
   function getRiskColor(score) {
