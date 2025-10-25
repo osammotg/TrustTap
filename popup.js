@@ -187,24 +187,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function createRadarChart(data) {
-    // Check if Chart.js is loaded
-    if (typeof Chart === 'undefined') {
-      console.error('Chart.js not loaded');
-      return;
-    }
+    console.log('=== CHART DEBUG START ===');
+    console.log('Chart.js available:', typeof Chart !== 'undefined');
+    console.log('Data received:', data);
+    console.log('Radar metrics:', data.radar_metrics);
 
-    console.log('Creating radar chart with data:', data.radar_metrics);
-
-    // Destroy existing chart
-    if (radarChart) radarChart.destroy();
-
-    const radarCanvas = document.getElementById('radarChart');
-    if (!radarCanvas) {
-      console.error('Radar chart canvas not found');
-      return;
-    }
-
-    const radarCtx = radarCanvas.getContext('2d');
+    // Always show fallback first
     const metrics = data.radar_metrics || {
       security: 50,
       reputation: 50,
@@ -213,92 +201,94 @@ document.addEventListener('DOMContentLoaded', async () => {
       trustworthiness: 50
     };
 
-    console.log('Radar metrics:', metrics);
-    
-    // Create gradient fill
-    const gradient = radarCtx.createLinearGradient(0, 0, 0, 280);
-    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.6)');
-    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.6)');
-    
-    radarChart = new Chart(radarCtx, {
-      type: 'radar',
-      data: {
-        labels: ['Security', 'Reputation', 'Reviews', 'Transparency', 'Trust'],
-        datasets: [{
-          label: 'Trust Assessment',
-          data: [
-            metrics.security,
-            metrics.reputation,
-            metrics.reviews,
-            metrics.transparency,
-            metrics.trustworthiness
-          ],
-          backgroundColor: gradient,
-          borderColor: '#667eea',
-          borderWidth: 2,
-          pointBackgroundColor: '#667eea',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: '#667eea',
-          pointRadius: 4,
-          pointHoverRadius: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          r: {
-            beginAtZero: true,
-            max: 100,
-            ticks: {
-              stepSize: 20,
-              font: {
-                size: 10
-              },
-              color: '#666'
-            },
-            pointLabels: {
-              font: {
-                size: 12,
-                weight: '600'
-              },
-              color: '#333'
-            },
-            grid: {
-              color: 'rgba(0, 0, 0, 0.1)'
-            },
-            angleLines: {
-              color: 'rgba(0, 0, 0, 0.1)'
-            }
-          }
+    // Show fallback immediately
+    showRadarFallback(metrics);
+
+    // Try to create chart if Chart.js is available
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js not loaded - using fallback only');
+      return;
+    }
+
+    const radarCanvas = document.getElementById('radarChart');
+    if (!radarCanvas) {
+      console.error('Radar chart canvas not found');
+      return;
+    }
+
+    try {
+      // Destroy existing chart
+      if (radarChart) radarChart.destroy();
+
+      console.log('Creating radar chart...');
+      
+      radarChart = new Chart(radarCanvas, {
+        type: 'radar',
+        data: {
+          labels: ['Security', 'Reputation', 'Reviews', 'Transparency', 'Trust'],
+          datasets: [{
+            label: 'Trust Assessment',
+            data: [
+              metrics.security,
+              metrics.reputation,
+              metrics.reviews,
+              metrics.transparency,
+              metrics.trustworthiness
+            ],
+            backgroundColor: 'rgba(255, 0, 0, 0.3)',
+            borderColor: 'rgba(255, 0, 0, 1)',
+            borderWidth: 3,
+            pointBackgroundColor: 'rgba(255, 0, 0, 1)',
+            pointBorderColor: '#fff',
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
         },
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return context.label + ': ' + context.parsed.r + '/100';
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                stepSize: 20,
+                color: '#000',
+                font: { size: 12, weight: 'bold' }
+              },
+              pointLabels: {
+                color: '#000',
+                font: { size: 14, weight: 'bold' }
+              },
+              grid: {
+                color: '#000'
+              },
+              angleLines: {
+                color: '#000'
               }
             }
+          },
+          plugins: {
+            legend: { display: false }
           }
-        },
-        animation: {
-          duration: 1000,
-          easing: 'easeInOutQuart'
         }
-      }
-    });
+      });
 
-    // Show fallback if chart fails to render
-    setTimeout(() => {
-      if (!radarChart || !radarChart.data) {
-        console.log('Chart failed, showing fallback');
-        showRadarFallback(metrics);
-      }
-    }, 2000);
+      console.log('Chart created successfully');
+      
+      // Hide fallback if chart works
+      setTimeout(() => {
+        const fallback = document.getElementById('radarFallback');
+        if (fallback && radarChart) {
+          fallback.style.display = 'none';
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('Chart creation failed:', error);
+    }
+
+    console.log('=== CHART DEBUG END ===');
   }
 
   function showRadarFallback(metrics) {
