@@ -1,5 +1,8 @@
 const API_BASE = "https://trust-cap.vercel.app/api/scan";
 
+let riskChart = null;
+let stanceChart = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
   const domainInput = document.getElementById('domain');
   const scanBtn = document.getElementById('scanBtn');
@@ -154,8 +157,92 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
+    // Create charts
+    createCharts(data);
+
     // Show results
     resultsDiv.style.display = 'block';
     errorDiv.style.display = 'none';
+  }
+
+  function createCharts(data) {
+    // Destroy existing charts
+    if (riskChart) riskChart.destroy();
+    if (stanceChart) stanceChart.destroy();
+
+    // Risk Score Donut Chart
+    const riskCtx = document.getElementById('riskChart').getContext('2d');
+    const riskScore = data.risk_score || 0;
+    const riskRemaining = 100 - riskScore;
+    
+    riskChart = new Chart(riskCtx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [riskScore, riskRemaining],
+          backgroundColor: [
+            getRiskColor(riskScore),
+            '#e9ecef'
+          ],
+          borderWidth: 0,
+          cutout: '70%'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false }
+        }
+      }
+    });
+
+    // Stance Analysis Bar Chart
+    const stanceCtx = document.getElementById('stanceChart').getContext('2d');
+    const negatives = data.negatives?.length || 0;
+    const positives = data.positives?.length || 0;
+    const neutral = Math.max(0, 5 - negatives - positives); // Assume max 5 items total
+    
+    stanceChart = new Chart(stanceCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Negative', 'Neutral', 'Positive'],
+        datasets: [{
+          data: [negatives, neutral, positives],
+          backgroundColor: ['#dc3545', '#6c757d', '#28a745'],
+          borderWidth: 0,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y + ' items';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: { 
+            display: false,
+            beginAtZero: true,
+            max: 5
+          }
+        }
+      }
+    });
+  }
+
+  function getRiskColor(score) {
+    if (score <= 30) return '#28a745'; // Green
+    if (score <= 70) return '#ffc107'; // Yellow
+    return '#dc3545'; // Red
   }
 });

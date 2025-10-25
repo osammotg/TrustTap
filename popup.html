@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TrustTap Analysis</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * {
       margin: 0;
@@ -117,6 +118,33 @@
       background: #f8f9fa;
       border-radius: 4px;
       font-size: 13px;
+    }
+
+    .charts-section {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .chart-container {
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+
+    .chart-container canvas {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .chart-label {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+      font-weight: 500;
     }
 
     .section {
@@ -241,6 +269,17 @@
       </div>
 
       <div class="summary" id="summary"></div>
+
+      <div class="charts-section">
+        <div class="chart-container">
+          <canvas id="riskChart" width="140" height="140"></canvas>
+          <div class="chart-label">Risk Score</div>
+        </div>
+        <div class="chart-container">
+          <canvas id="stanceChart" width="140" height="140"></canvas>
+          <div class="chart-label">Stance Analysis</div>
+        </div>
+      </div>
 
       <div class="section negatives">
         <h3>Red Flags</h3>
