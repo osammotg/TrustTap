@@ -35,6 +35,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Hide help button when starting new scan
+    const helpButton = document.getElementById('helpButton');
+    if (helpButton) {
+      helpButton.classList.remove('show');
+    }
+
     // Disable button and show loading animation
     scanBtn.disabled = true;
     scanBtn.textContent = 'Scanning...';
@@ -181,6 +187,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show results
     resultsDiv.style.display = 'block';
     errorDiv.style.display = 'none';
+    
+    // Show help button after scan is completed
+    const helpButton = document.getElementById('helpButton');
+    if (helpButton) {
+      helpButton.classList.add('show');
+    }
   }
 
   function animateTrustMetrics(data) {

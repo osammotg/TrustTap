@@ -548,10 +548,14 @@
       box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
       transition: all 0.3s ease;
       z-index: 1000;
-      display: flex;
+      display: none;
       align-items: center;
       gap: 8px;
       backdrop-filter: blur(10px);
+    }
+
+    .floating-help-btn.show {
+      display: flex;
     }
 
     .floating-help-btn:hover {
