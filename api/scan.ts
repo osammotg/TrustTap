@@ -201,7 +201,7 @@ function enrichEvidence(evidence: Evidence[], targetDomain: string) {
   });
 }
 
-function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: number, domainAuth?: any, actualFraudCount?: number, victimCount?: number): RadarMetrics {
+function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: number, domainAuth?: any, actualFraudCount?: number, victimCount?: number, noInformationFound?: boolean): RadarMetrics {
   const positiveCount = report.positives?.length || 0;
   const negativeCount = report.negatives?.length || 0;
   const citationCount = report.citations?.length || 0;
@@ -234,22 +234,26 @@ function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: num
       : 40;
   
   // Transparency: based on citations and evidence quality
-  const transparency = citationCount > 0 ? 100 : 50;
+  const transparency = noInformationFound && domainAuth?.authority !== 'high'
+    ? 10  // No information found = very low transparency
+    : citationCount > 0 ? 100 : 50;
   
-  // Trustworthiness: considers authority + fraud severity
-  const trustworthiness = domainAuth?.authority === 'high'
-    ? actualFraudCount === 0 
-      ? 95  // High authority, no fraud
-      : actualFraudCount <= 2
-        ? 75  // High authority, minor complaints
-        : actualFraudCount <= 4
-          ? 60  // High authority, moderate complaints
-          : 45  // High authority, many complaints
-    : actualFraudCount === 0 && victimCount && victimCount > 0
-      ? 85  // Medium/low authority, victim of impersonation
-      : actualFraudCount && actualFraudCount > 0
-        ? 40  // Medium/low authority with fraud
-        : 60; // Medium/low authority, neutral
+  // Trustworthiness: considers authority + fraud severity + information availability
+  const trustworthiness = noInformationFound && domainAuth?.authority !== 'high'
+    ? 15  // No information found = very low trustworthiness
+    : domainAuth?.authority === 'high'
+      ? actualFraudCount === 0 
+        ? 95  // High authority, no fraud
+        : actualFraudCount <= 2
+          ? 75  // High authority, minor complaints
+          : actualFraudCount <= 4
+            ? 60  // High authority, moderate complaints
+            : 45  // High authority, many complaints
+      : actualFraudCount === 0 && victimCount && victimCount > 0
+        ? 85  // Medium/low authority, victim of impersonation
+        : actualFraudCount && actualFraudCount > 0
+          ? 40  // Medium/low authority with fraud
+          : 60; // Medium/low authority, neutral
   
   return {
     security,
@@ -493,6 +497,21 @@ export async function GET(request: NextRequest) {
       e.labels?.fraud_intent?.length > 0 && e.is_victim_of_impersonation !== true
     ).length || 0;
     
+    // Detect "no information found" scenario - highly suspicious
+    const totalEvidence = report.evidence?.length || 0;
+    const hasCitations = report.citations?.length > 0;
+    const hasPositives = report.positives?.length > 0;
+    const hasNegatives = report.negatives?.length > 0;
+    const noInformationFound = totalEvidence === 0 && !hasCitations && !hasPositives && !hasNegatives;
+    
+    console.log('Information Detection:', {
+      totalEvidence,
+      hasCitations,
+      hasPositives,
+      hasNegatives,
+      noInformationFound
+    });
+    
     // Detect marketplace/third-party seller issues
     const marketplaceIssues = report.evidence?.filter((e: any) => {
       const content = (e.title + ' ' + e.snippet + ' ' + (e.rationale || '')).toLowerCase();
@@ -539,6 +558,13 @@ export async function GET(request: NextRequest) {
       console.log(`Marketplace discount applied: ${marketplaceIssues} marketplace issues, ${adjustedRisk / 0.7} → ${adjustedRisk}`);
     }
     
+    // Apply "no information found" penalty - highly suspicious
+    if (noInformationFound && domainAuth.authority !== 'high') {
+      // No information found = major red flag for non-high-authority domains
+      adjustedRisk = Math.max(75, adjustedRisk + 30); // Minimum 75, or +30 penalty
+      console.log(`No information found penalty: ${adjustedRisk - 30} → ${adjustedRisk} (highly suspicious)`);
+    }
+    
     // Authority-based verdict thresholds
     if (domainAuth.authority === 'high') {
       // High-authority domains need higher thresholds for DANGER
@@ -551,7 +577,10 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // Standard thresholds for other domains
-      if (adjustedRisk >= 60 && (actualFraudCount >= 2 || hasRegulatorWarning)) {
+      if (noInformationFound) {
+        // No information found = DANGER for non-high-authority domains
+        adjustedVerdict = 'danger';
+      } else if (adjustedRisk >= 60 && (actualFraudCount >= 2 || hasRegulatorWarning)) {
         adjustedVerdict = 'danger';
       } else if (adjustedRisk <= 30 && actualFraudCount === 0 && (report.evidence?.length || 0) >= 2) {
         adjustedVerdict = 'safe';
@@ -580,7 +609,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate radar metrics
-    const radarMetrics = calculateRadarMetrics(report, allResults, riskScore, domainAuth, actualFraudCount, victimCount);
+    const radarMetrics = calculateRadarMetrics(report, allResults, riskScore, domainAuth, actualFraudCount, victimCount, noInformationFound);
 
     const finalReport: TrustReport = {
       risk_score: riskScore,
