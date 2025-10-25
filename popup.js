@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const scanBtn = document.getElementById('scanBtn');
   const spinner = document.getElementById('spinner');
   const errorDiv = document.getElementById('error');
+  const loadingDiv = document.getElementById('loading');
   const resultsDiv = document.getElementById('results');
 
   // Get current tab domain
@@ -37,12 +38,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Disable button and show spinner
+    // Disable button and show loading animation
     scanBtn.disabled = true;
     scanBtn.textContent = 'Scanning...';
     spinner.style.display = 'block';
     errorDiv.style.display = 'none';
     resultsDiv.style.display = 'none';
+    loadingDiv.style.display = 'block';
+    
+    // Start loading animation
+    startLoadingAnimation(domain);
 
     try {
       const response = await fetch(`${API_BASE}?domain=${encodeURIComponent(domain)}`);
@@ -58,10 +63,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Scan failed:', error);
       showError(`Scan failed: ${error.message}`);
     } finally {
-      // Re-enable button and hide spinner
+      // Re-enable button and hide loading animation
       scanBtn.disabled = false;
       scanBtn.textContent = 'Scan';
       spinner.style.display = 'none';
+      loadingDiv.style.display = 'none';
     }
   });
 
@@ -244,5 +250,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (score <= 30) return '#28a745'; // Green
     if (score <= 70) return '#ffc107'; // Yellow
     return '#dc3545'; // Red
+  }
+
+  function startLoadingAnimation(domain) {
+    const scanItems = [
+      { id: 'scanItem1', text: 'Initializing analysis...', delay: 0 },
+      { id: 'scanItem2', text: `Scanning ${domain} reviews...`, delay: 1000 },
+      { id: 'scanItem3', text: 'Searching Trustpilot & Reddit...', delay: 2000 },
+      { id: 'scanItem4', text: 'AI analyzing evidence...', delay: 3000 }
+    ];
+
+    const progressFill = document.getElementById('progressFill');
+    const loadingStatus = document.getElementById('loadingStatus');
+    
+    let currentStep = 0;
+    const totalSteps = scanItems.length;
+    
+    // Reset all scan items
+    scanItems.forEach(item => {
+      const element = document.getElementById(item.id);
+      element.style.display = 'none';
+      element.style.opacity = '0';
+      element.style.transform = 'translateX(-20px)';
+    });
+
+    // Animate each step
+    scanItems.forEach((item, index) => {
+      setTimeout(() => {
+        const element = document.getElementById(item.id);
+        element.style.display = 'flex';
+        element.style.animation = 'slideIn 0.5s ease-out forwards';
+        
+        // Update progress
+        currentStep++;
+        const progress = (currentStep / totalSteps) * 100;
+        progressFill.style.width = `${progress}%`;
+        loadingStatus.textContent = item.text;
+        
+        // Add pulsing effect to current item
+        element.style.animation = 'slideIn 0.5s ease-out forwards, pulse 1s ease-in-out infinite';
+        
+        // Remove pulsing from previous items
+        if (index > 0) {
+          const prevElement = document.getElementById(scanItems[index - 1].id);
+          prevElement.style.animation = 'slideIn 0.5s ease-out forwards';
+        }
+      }, item.delay);
+    });
+
+    // Add pulse animation for current item
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+    `;
+    document.head.appendChild(style);
   }
 });
