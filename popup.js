@@ -1,7 +1,6 @@
 const API_BASE = "https://trust-cap.vercel.app/api/scan";
 
-let riskChart = null;
-let stanceChart = null;
+let radarChart = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const domainInput = document.getElementById('domain');
@@ -163,15 +162,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Create charts (with fallback for Chart.js loading)
+    // Create radar chart (with fallback for Chart.js loading)
     if (typeof Chart !== 'undefined') {
-      createCharts(data);
+      createRadarChart(data);
     } else {
       // Wait for Chart.js to load
       const checkChart = setInterval(() => {
         if (typeof Chart !== 'undefined') {
           clearInterval(checkChart);
-          createCharts(data);
+          createRadarChart(data);
         }
       }, 100);
       
@@ -187,82 +186,98 @@ document.addEventListener('DOMContentLoaded', async () => {
     errorDiv.style.display = 'none';
   }
 
-  function createCharts(data) {
+  function createRadarChart(data) {
     // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
       console.error('Chart.js not loaded');
       return;
     }
 
-    // Destroy existing charts
-    if (riskChart) riskChart.destroy();
-    if (stanceChart) stanceChart.destroy();
+    // Destroy existing chart
+    if (radarChart) radarChart.destroy();
 
-    // Risk Score Donut Chart
-    const riskCtx = document.getElementById('riskChart').getContext('2d');
-    const riskScore = data.risk_score || 0;
-    const riskRemaining = 100 - riskScore;
+    const radarCtx = document.getElementById('radarChart').getContext('2d');
+    const metrics = data.radar_metrics || {
+      security: 50,
+      reputation: 50,
+      reviews: 50,
+      transparency: 50,
+      trustworthiness: 50
+    };
     
-    riskChart = new Chart(riskCtx, {
-      type: 'doughnut',
+    // Create gradient fill
+    const gradient = radarCtx.createLinearGradient(0, 0, 0, 280);
+    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.6)');
+    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.6)');
+    
+    radarChart = new Chart(radarCtx, {
+      type: 'radar',
       data: {
+        labels: ['Security', 'Reputation', 'Reviews', 'Transparency', 'Trust'],
         datasets: [{
-          data: [riskScore, riskRemaining],
-          backgroundColor: [
-            getRiskColor(riskScore),
-            '#e9ecef'
+          label: 'Trust Assessment',
+          data: [
+            metrics.security,
+            metrics.reputation,
+            metrics.reviews,
+            metrics.transparency,
+            metrics.trustworthiness
           ],
-          borderWidth: 0,
-          cutout: '70%'
+          backgroundColor: gradient,
+          borderColor: '#667eea',
+          borderWidth: 2,
+          pointBackgroundColor: '#667eea',
+          pointBorderColor: '#fff',
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: '#667eea',
+          pointRadius: 4,
+          pointHoverRadius: 6
         }]
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
+        scales: {
+          r: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              stepSize: 20,
+              font: {
+                size: 10
+              },
+              color: '#666'
+            },
+            pointLabels: {
+              font: {
+                size: 12,
+                weight: '600'
+              },
+              color: '#333'
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.1)'
+            },
+            angleLines: {
+              color: 'rgba(0, 0, 0, 0.1)'
+            }
+          }
+        },
         plugins: {
-          legend: { display: false },
-          tooltip: { enabled: false }
-        }
-      }
-    });
-
-    // Stance Analysis Bar Chart
-    const stanceCtx = document.getElementById('stanceChart').getContext('2d');
-    const negatives = data.negatives?.length || 0;
-    const positives = data.positives?.length || 0;
-    const neutral = Math.max(0, 5 - negatives - positives); // Assume max 5 items total
-    
-    stanceChart = new Chart(stanceCtx, {
-      type: 'bar',
-      data: {
-        labels: ['Negative', 'Neutral', 'Positive'],
-        datasets: [{
-          data: [negatives, neutral, positives],
-          backgroundColor: ['#dc3545', '#6c757d', '#28a745'],
-          borderWidth: 0,
-          borderRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
+          legend: {
+            display: false
+          },
           tooltip: {
             callbacks: {
               label: function(context) {
-                return context.parsed.y + ' items';
+                return context.label + ': ' + context.parsed.r + '/100';
               }
             }
           }
         },
-        scales: {
-          x: { display: false },
-          y: { 
-            display: false,
-            beginAtZero: true,
-            max: 5
-          }
+        animation: {
+          duration: 1000,
+          easing: 'easeInOutQuart'
         }
       }
     });

@@ -119,30 +119,48 @@
       font-size: 13px;
     }
 
-    .charts-section {
-      display: flex;
-      gap: 12px;
+    .radar-section {
       margin-bottom: 16px;
-      padding: 12px;
-      background: #f8f9fa;
-      border-radius: 4px;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
     }
 
-    .chart-container {
-      flex: 1;
+    .radar-container {
       text-align: center;
-      position: relative;
+      margin-bottom: 12px;
     }
 
-    .chart-container canvas {
+    .radar-container canvas {
       max-width: 100%;
       height: auto;
     }
 
-    .chart-label {
+    .radar-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: white;
+      border-radius: 12px;
       font-size: 11px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .legend-icon {
+      font-size: 14px;
+    }
+
+    .legend-text {
       color: #666;
-      margin-top: 4px;
       font-weight: 500;
     }
 
@@ -405,14 +423,31 @@
 
       <div class="summary" id="summary"></div>
 
-      <div class="charts-section">
-        <div class="chart-container">
-          <canvas id="riskChart" width="140" height="140"></canvas>
-          <div class="chart-label">Risk Score</div>
+      <div class="radar-section">
+        <div class="radar-container">
+          <canvas id="radarChart" width="280" height="280"></canvas>
         </div>
-        <div class="chart-container">
-          <canvas id="stanceChart" width="140" height="140"></canvas>
-          <div class="chart-label">Stance Analysis</div>
+        <div class="radar-legend">
+          <div class="legend-item">
+            <span class="legend-icon">🛡️</span>
+            <span class="legend-text">Security</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-icon">⭐</span>
+            <span class="legend-text">Reputation</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-icon">📝</span>
+            <span class="legend-text">Reviews</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-icon">🔍</span>
+            <span class="legend-text">Transparency</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-icon">✅</span>
+            <span class="legend-text">Trust</span>
+          </div>
         </div>
       </div>
 

@@ -19,6 +19,14 @@ interface Evidence {
   content: string;
 }
 
+interface RadarMetrics {
+  security: number;
+  reputation: number;
+  reviews: number;
+  transparency: number;
+  trustworthiness: number;
+}
+
 interface TrustReport {
   risk_score: number;
   verdict: string;
@@ -27,6 +35,7 @@ interface TrustReport {
   negatives: string[];
   citations: { title: string; url: string }[];
   sources: string[];
+  radar_metrics: RadarMetrics;
 }
 
 async function searchTavily(query: string): Promise<TavilyResult[]> {
@@ -49,6 +58,49 @@ async function searchTavily(query: string): Promise<TavilyResult[]> {
 
   const data = await response.json();
   return data.results || [];
+}
+
+function calculateRadarMetrics(report: any, evidence: Evidence[], riskScore: number): RadarMetrics {
+  const positiveCount = report.positives?.length || 0;
+  const negativeCount = report.negatives?.length || 0;
+  const citationCount = report.citations?.length || 0;
+  const evidenceCount = evidence.length;
+  
+  // Security: inverse of risk score, boosted if no scam mentions
+  const scamMentions = evidence.filter(e => 
+    e.content.toLowerCase().includes('scam') || 
+    e.content.toLowerCase().includes('fraud') ||
+    e.content.toLowerCase().includes('phishing')
+  ).length;
+  const security = Math.max(0, Math.min(100, 100 - riskScore - (scamMentions * 5)));
+  
+  // Reputation: based on positive vs negative ratio
+  const totalSentiment = positiveCount + negativeCount;
+  const reputation = totalSentiment > 0 
+    ? Math.round((positiveCount / totalSentiment) * 100)
+    : 50;
+  
+  // Reviews: based on number of review sources found
+  const reviewSources = evidence.filter(e =>
+    e.url.includes('trustpilot') ||
+    e.url.includes('reddit') ||
+    e.content.toLowerCase().includes('review')
+  ).length;
+  const reviews = Math.min(100, reviewSources * 20);
+  
+  // Transparency: based on citations and evidence quality
+  const transparency = Math.min(100, (citationCount * 25) + (evidenceCount * 5));
+  
+  // Trustworthiness: inverse of risk score
+  const trustworthiness = Math.max(0, 100 - riskScore);
+  
+  return {
+    security,
+    reputation,
+    reviews,
+    transparency,
+    trustworthiness
+  };
 }
 
 async function analyzeWithOpenAI(domain: string, evidence: Evidence[]): Promise<TrustReport> {
@@ -191,6 +243,9 @@ export async function GET(request: NextRequest) {
     const riskScore = Math.max(0, Math.min(100, report.risk_score || 50));
     const verdict = VERDICT_ENUM.includes(report.verdict) ? report.verdict : 'caution';
 
+    // Calculate radar metrics
+    const radarMetrics = calculateRadarMetrics(report, allResults, riskScore);
+
     const finalReport: TrustReport = {
       risk_score: riskScore,
       verdict,
@@ -198,7 +253,8 @@ export async function GET(request: NextRequest) {
       positives: Array.isArray(report.positives) ? report.positives : [],
       negatives: Array.isArray(report.negatives) ? report.negatives : [],
       citations: Array.isArray(report.citations) ? report.citations : [],
-      sources: queries
+      sources: queries,
+      radar_metrics: radarMetrics
     };
 
     return NextResponse.json(finalReport, { headers });
@@ -213,7 +269,14 @@ export async function GET(request: NextRequest) {
       positives: [],
       negatives: [],
       citations: [],
-      sources: []
+      sources: [],
+      radar_metrics: {
+        security: 50,
+        reputation: 50,
+        reviews: 50,
+        transparency: 50,
+        trustworthiness: 50
+      }
     };
 
     return NextResponse.json(fallbackReport, { headers });
