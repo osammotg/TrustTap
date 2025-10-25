@@ -1,4 +1,4 @@
-const API_BASE = "https://YOUR-VERCEL-URL/api/scan";
+const API_BASE = "https://trust-cap.vercel.app/api/scan";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const domainInput = document.getElementById('domain');
